@@ -175,9 +175,11 @@ function listenToMap() {
       mapImage.classList.remove("hidden");
       mapPlaceholder.classList.add("hidden");
       el("mapStage").classList.remove("hidden");
+      el("zoomControls").classList.remove("hidden");
     } else {
       mapImage.classList.add("hidden");
       el("mapStage").classList.add("hidden");
+      el("zoomControls").classList.add("hidden");
       mapPlaceholder.classList.remove("hidden");
     }
   });
@@ -188,35 +190,79 @@ function resizeCanvasToImage() {
   const h = mapImage.naturalHeight || 800;
   // The canvas's actual pixel buffer stays at the image's native resolution,
   // so drawing stays crisp — only its on-screen CSS size changes to fit the
-  // window. canvasPos() below already converts screen coordinates into this
-  // buffer's coordinate space, so scaling the display size doesn't break
-  // where strokes land.
+  // window and zoom level. canvasPos() below already converts screen
+  // coordinates into this buffer's coordinate space, so scaling the display
+  // size doesn't break where strokes land.
   canvas.width = w;
   canvas.height = h;
-  fitStageToWindow();
+  zoomLevel = 1; // fresh map load resets to "fit"
+  applyStageSize();
   redrawAllStrokes();
 }
 
-function fitStageToWindow() {
+// ---------- Zoom ----------
+let zoomLevel = 1;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 5;
+
+function computeFitScale(w, h) {
+  const availW = canvasWrap.clientWidth - 24;
+  const availH = canvasWrap.clientHeight - 24;
+  return Math.min(availW / w, availH / h) * 0.995;
+}
+
+function applyStageSize() {
   const w = mapImage.naturalWidth;
   const h = mapImage.naturalHeight;
   if (!w || !h) return;
-  const stage = el("mapStage");
-  const availW = canvasWrap.clientWidth - 24;
-  const availH = canvasWrap.clientHeight - 24;
-  const scale = Math.min(availW / w, availH / h) * 0.995;
+  const scale = computeFitScale(w, h) * zoomLevel;
   const dispW = Math.floor(w * scale);
   const dispH = Math.floor(h * scale);
+  const stage = el("mapStage");
   stage.style.width = dispW + "px";
   stage.style.height = dispH + "px";
   mapImage.style.width = dispW + "px";
   mapImage.style.height = dispH + "px";
   canvas.style.width = dispW + "px";
   canvas.style.height = dispH + "px";
+
+  // Past "fit" size the stage no longer fits the container, so switch to a
+  // scrollable/pannable view anchored top-left (centering an over-sized flex
+  // child with overflow:auto can make part of it permanently unscrollable-to,
+  // a known flexbox quirk — top-left anchoring avoids that).
+  const zoomedIn = zoomLevel > 1.001;
+  canvasWrap.style.overflow = zoomedIn ? "auto" : "hidden";
+  canvasWrap.style.justifyContent = zoomedIn ? "flex-start" : "center";
+  canvasWrap.style.alignItems = zoomedIn ? "flex-start" : "center";
+
+  el("zoomLabel").textContent = Math.round(zoomLevel * 100) + "%";
 }
 
+function setZoom(newZoom) {
+  zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newZoom));
+  applyStageSize();
+}
+
+el("zoomInBtn").onclick = () => setZoom(zoomLevel * 1.25);
+el("zoomOutBtn").onclick = () => setZoom(zoomLevel / 1.25);
+el("zoomResetBtn").onclick = () => setZoom(1);
+
+// Ctrl+scroll (also how browsers report trackpad pinch-zoom) zooms;
+// plain scroll/trackpad pans normally when zoomed in past fit.
+canvasWrap.addEventListener(
+  "wheel",
+  (e) => {
+    if (!e.ctrlKey) return;
+    if (!mapImage.naturalWidth) return;
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+    setZoom(zoomLevel * factor);
+  },
+  { passive: false }
+);
+
 const stageResizeObserver = new ResizeObserver(() => {
-  if (mapImage.naturalWidth) fitStageToWindow();
+  if (mapImage.naturalWidth) applyStageSize();
 });
 stageResizeObserver.observe(canvasWrap);
 
