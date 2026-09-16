@@ -204,9 +204,9 @@ function fitStageToWindow() {
   const stage = el("mapStage");
   const availW = canvasWrap.clientWidth - 24;
   const availH = canvasWrap.clientHeight - 24;
-  const scale = Math.min(availW / w, availH / h);
-  const dispW = Math.round(w * scale);
-  const dispH = Math.round(h * scale);
+  const scale = Math.min(availW / w, availH / h) * 0.995;
+  const dispW = Math.floor(w * scale);
+  const dispH = Math.floor(h * scale);
   stage.style.width = dispW + "px";
   stage.style.height = dispH + "px";
   mapImage.style.width = dispW + "px";
@@ -215,9 +215,10 @@ function fitStageToWindow() {
   canvas.style.height = dispH + "px";
 }
 
-window.addEventListener("resize", () => {
+const stageResizeObserver = new ResizeObserver(() => {
   if (mapImage.naturalWidth) fitStageToWindow();
 });
+stageResizeObserver.observe(canvasWrap);
 
 el("mapUploadBtn").onclick = () => el("mapFileInput").click();
 el("mapFileInput").onchange = (e) => {
