@@ -20,47 +20,54 @@
   <header id="topbar">
     <div class="brand">Tactics Map</div>
     <div id="whoami" class="whoami"></div>
+    <button id="leaveRoleBtn" class="hidden" title="Step down to Viewer so someone else can take this role">Leave Role</button>
     <div id="topActions" class="top-actions"></div>
   </header>
 
   <main>
-    <div id="canvasWrap">
-      <div id="mapPlaceholder" class="map-placeholder">
-        Waiting for Recon to upload the map image...
+    <div id="mapColumn">
+      <div id="drawToolbar" class="draw-toolbar hidden">
+        <div class="toolbar-group">
+          <button class="toolBtn active" data-tool="pen">Pen</button>
+          <button class="toolBtn" data-tool="arrow">Arrow</button>
+          <button class="toolBtn" data-tool="text">Label</button>
+          <button class="toolBtn" data-tool="eraser">Eraser</button>
+        </div>
+        <div class="toolbar-group" id="colorRow"></div>
+        <div class="toolbar-group">
+          <button id="undoBtn">Undo My Last</button>
+        </div>
       </div>
-      <div id="mapStage" class="map-stage hidden">
-        <img id="mapImage" class="map-image hidden" alt="Tactical map" />
-        <canvas id="drawCanvas"></canvas>
-      </div>
-      <div id="zoomControls" class="zoom-controls hidden">
-        <button id="zoomInBtn" title="Zoom in">+</button>
-        <div id="zoomLabel" class="zoom-label">100%</div>
-        <button id="zoomOutBtn" title="Zoom out">&minus;</button>
-        <button id="zoomResetBtn" title="Reset to fit">Fit</button>
+
+      <div id="canvasWrap">
+        <div id="mapPlaceholder" class="map-placeholder">
+          Waiting for Recon to upload the map image...
+        </div>
+        <div id="mapStage" class="map-stage hidden">
+          <img id="mapImage" class="map-image hidden" alt="Tactical map" />
+          <canvas id="drawCanvas"></canvas>
+        </div>
+        <div id="zoomControls" class="zoom-controls hidden">
+          <button id="zoomInBtn" title="Zoom in">+</button>
+          <div id="zoomLabel" class="zoom-label">100%</div>
+          <button id="zoomOutBtn" title="Zoom out">&minus;</button>
+          <button id="zoomResetBtn" title="Reset to fit">Fit</button>
+        </div>
       </div>
     </div>
 
     <aside id="sidebar">
+
+      <section id="onlineSection" class="panel">
+        <h3>Online Now</h3>
+        <div id="onlineList"></div>
+      </section>
 
       <section id="uploadSection" class="panel hidden">
         <h3>Map Image</h3>
         <input id="mapFileInput" type="file" accept="image/*" class="hidden" />
         <button id="mapUploadBtn">Upload / Replace Map</button>
         <p class="hint">Paste (Ctrl/Cmd+V) anywhere on the page also works.</p>
-      </section>
-
-      <section id="toolSection" class="panel hidden">
-        <h3>Drawing Tools</h3>
-        <div class="tool-row">
-          <button class="toolBtn" data-tool="pen">Pen</button>
-          <button class="toolBtn" data-tool="arrow">Arrow</button>
-          <button class="toolBtn" data-tool="text">Label</button>
-          <button class="toolBtn" data-tool="eraser">Eraser</button>
-        </div>
-        <div class="color-row" id="colorRow"></div>
-        <div class="tool-row">
-          <button id="undoBtn">Undo My Last</button>
-        </div>
       </section>
 
       <section id="adminSection" class="panel hidden">

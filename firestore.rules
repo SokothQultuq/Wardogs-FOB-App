@@ -48,7 +48,11 @@ service cloud.firestore {
         // Anyone can self-promote to Platoon Leader with the correct passcode.
         (request.auth.uid == uid &&
           request.resource.data.role == 'platoon_leader' &&
-          correctPasscode())
+          correctPasscode()) ||
+        // Anyone can step their own role back down to viewer at any time —
+        // this is how someone "leaves" a role (e.g. Platoon Leader stepping
+        // down) so someone else can take it.
+        (request.auth.uid == uid && request.resource.data.role == 'viewer')
       );
     }
 

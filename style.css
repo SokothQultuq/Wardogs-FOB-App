@@ -32,12 +32,40 @@ body {
 }
 .brand { font-weight: 700; letter-spacing: 0.5px; }
 .whoami { color: var(--muted); font-size: 14px; }
+#leaveRoleBtn {
+  background: #3a3f47;
+  font-size: 12px;
+  padding: 6px 10px;
+}
 .top-actions { margin-left: auto; font-size: 13px; color: var(--muted); }
 
 main {
   flex: 1;
   display: flex;
   min-height: 0;
+}
+
+#mapColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.draw-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 #canvasWrap {
@@ -234,3 +262,21 @@ input[type="text"], input[type="password"] {
   padding: 4px;
   font-size: 12px;
 }
+
+.online-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3ddc84;
+  flex-shrink: 0;
+}
+.online-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.online-role { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+.online-empty { color: var(--muted); font-size: 12px; }

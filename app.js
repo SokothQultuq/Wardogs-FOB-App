@@ -25,13 +25,17 @@ let currentColor = PALETTE[0];
 let currentTool = "pen";
 let strokesUnsub = null;
 let usersUnsub = null;
+let usersCache = [];
+const ONLINE_THRESHOLD_MS = 45000;
+const HEARTBEAT_MS = 20000;
 
 // ---------- UI refs ----------
 const el = (id) => document.getElementById(id);
 const nameModal = el("nameModal");
 const whoami = el("whoami");
+const leaveRoleBtn = el("leaveRoleBtn");
 const uploadSection = el("uploadSection");
-const toolSection = el("toolSection");
+const drawToolbar = el("drawToolbar");
 const adminSection = el("adminSection");
 const claimSection = el("claimSection");
 const canvas = el("drawCanvas");
@@ -82,10 +86,20 @@ async function ensureUserDoc() {
       name: myName,
       role: "viewer",
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
     });
   } else if (snap.data().name !== myName) {
     await ref.update({ name: myName });
   }
+}
+
+function startHeartbeat() {
+  const beat = () =>
+    db.collection("users").doc(uid).update({
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+    }).catch(() => {});
+  beat();
+  setInterval(beat, HEARTBEAT_MS);
 }
 
 function startListeners() {
@@ -97,20 +111,71 @@ function startListeners() {
       applyRoleUI();
     });
 
+  startHeartbeat();
+
+  usersUnsub = db.collection("users").onSnapshot((snap) => {
+    usersCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderOnlineList();
+    if (myRole === "platoon_leader") renderRoster();
+  });
+  setInterval(renderOnlineList, 15000); // re-check staleness even without new writes
+
   listenToMap();
   listenToStrokes();
 }
 
 function applyRoleUI() {
   whoami.textContent = `${myName} — ${ROLE_LABELS[myRole] || myRole}`;
+  leaveRoleBtn.classList.toggle("hidden", myRole === "viewer");
   uploadSection.classList.toggle("hidden", !MAP_ROLES.includes(myRole));
-  toolSection.classList.toggle("hidden", !DRAW_ROLES.includes(myRole));
+  drawToolbar.classList.toggle("hidden", !DRAW_ROLES.includes(myRole));
   adminSection.classList.toggle("hidden", myRole !== "platoon_leader");
   claimSection.classList.toggle("hidden", myRole === "platoon_leader");
 
-  if (myRole === "platoon_leader" && !usersUnsub) {
-    usersUnsub = db.collection("users").onSnapshot(renderRoster);
+  if (myRole === "platoon_leader") renderRoster();
+}
+
+leaveRoleBtn.onclick = () => {
+  if (!confirm(`Step down from ${ROLE_LABELS[myRole]} back to Viewer? Someone else will be able to take this role.`)) return;
+  db.collection("users").doc(uid).update({ role: "viewer" })
+    .catch((e) => toast("Could not leave role: " + e.message));
+};
+
+// ---------- Online Now (everyone sees this) ----------
+function renderOnlineList() {
+  const list = el("onlineList");
+  const now = Date.now();
+  const online = usersCache.filter((u) => {
+    const ts = u.lastSeen && u.lastSeen.toMillis ? u.lastSeen.toMillis() : 0;
+    return now - ts < ONLINE_THRESHOLD_MS;
+  });
+  online.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  list.innerHTML = "";
+  if (online.length === 0) {
+    list.innerHTML = '<div class="online-empty">No one else is here right now.</div>';
+    return;
   }
+  online.forEach((u) => {
+    const row = document.createElement("div");
+    row.className = "online-row";
+
+    const dot = document.createElement("span");
+    dot.className = "online-dot";
+    row.appendChild(dot);
+
+    const name = document.createElement("span");
+    name.className = "online-name";
+    name.textContent = (u.name || "(unnamed)") + (u.id === uid ? " (you)" : "");
+    row.appendChild(name);
+
+    const role = document.createElement("span");
+    role.className = "online-role";
+    role.textContent = ROLE_LABELS[u.role] || u.role;
+    row.appendChild(role);
+
+    list.appendChild(row);
+  });
 }
 
 // ---------- Claim Platoon Leader ----------
@@ -133,11 +198,10 @@ el("claimBtn").onclick = async () => {
 };
 
 // ---------- Roster (Platoon Leader only) ----------
-function renderRoster(snap) {
+function renderRoster() {
   const roster = el("roster");
   roster.innerHTML = "";
-  snap.forEach((doc) => {
-    const data = doc.data();
+  usersCache.forEach((data) => {
     const row = document.createElement("div");
     row.className = "roster-row";
 
@@ -155,7 +219,7 @@ function renderRoster(snap) {
       select.appendChild(opt);
     });
     select.onchange = () => {
-      db.collection("users").doc(doc.id).update({ role: select.value })
+      db.collection("users").doc(data.id).update({ role: select.value })
         .catch((e) => toast("Could not update role: " + e.message));
     };
     row.appendChild(select);
