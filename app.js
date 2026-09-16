@@ -18,6 +18,18 @@ const DRAW_ROLES = ["squad_leader", "platoon_leader", "fob_designer"];
 const MAP_ROLES = ["recon", "platoon_leader"];
 const PALETTE = ["#ff5252", "#4c8dff", "#3ddc84", "#ffd54f", "#ffffff", "#ff9800"];
 
+const POINT_ICON_TOOLS = ["gate", "aa", "drill", "fob", "bunker", "tower", "mortar"];
+const LINE_ICON_TOOLS = ["wall", "wire"];
+const ICON_LABELS = {
+  gate: "GATE",
+  aa: "AA",
+  drill: "DRILL",
+  fob: "FOB",
+  bunker: "BUNKER",
+  tower: "TOWER",
+  mortar: "MORTAR",
+};
+
 let uid = null;
 let myName = localStorage.getItem("tacticalName") || "";
 let myRole = "viewer";
@@ -467,6 +479,7 @@ function startDraw(e) {
   if (!DRAW_ROLES.includes(myRole)) return;
   if (currentTool === "text") return handleTextTool(e);
   if (currentTool === "eraser") return handleEraserClick(e);
+  if (POINT_ICON_TOOLS.includes(currentTool)) return handleIconPlace(e, currentTool);
   drawing = true;
   currentPoints = [canvasPos(e)];
 }
@@ -484,7 +497,7 @@ async function endDraw() {
     currentPoints = [];
     return;
   }
-  const points = currentTool === "arrow"
+  const points = ["arrow", "wall", "wire"].includes(currentTool)
     ? [currentPoints[0], currentPoints[currentPoints.length - 1]]
     : currentPoints;
 
@@ -523,6 +536,18 @@ function handleTextTool(e) {
     points: [p],
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   }).catch((e) => toast("Could not save label: " + e.message));
+}
+
+function handleIconPlace(e, tool) {
+  const p = canvasPos(e);
+  db.collection("strokes").add({
+    uid,
+    author: myName,
+    tool,
+    color: currentColor,
+    points: [p],
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }).catch((err) => toast("Could not place icon: " + err.message));
 }
 
 let allStrokes = [];
@@ -584,8 +609,9 @@ function redrawAllStrokes() {
 function drawStroke(stroke) {
   const pts = stroke.points || [];
   if (pts.length === 0) return;
-  ctx.strokeStyle = stroke.color || "#fff";
-  ctx.fillStyle = stroke.color || "#fff";
+  const color = stroke.color || "#fff";
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
   ctx.lineWidth = 4;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
@@ -593,6 +619,21 @@ function drawStroke(stroke) {
   if (stroke.tool === "text") {
     ctx.font = "bold 22px sans-serif";
     ctx.fillText(stroke.text || "", pts[0].x, pts[0].y);
+    return;
+  }
+
+  if (POINT_ICON_TOOLS.includes(stroke.tool)) {
+    drawIconGlyph(stroke.tool, pts[0], color);
+    return;
+  }
+
+  if (stroke.tool === "wall" && pts.length >= 2) {
+    drawWallLine(pts[0], pts[pts.length - 1], color);
+    return;
+  }
+
+  if (stroke.tool === "wire" && pts.length >= 2) {
+    drawWireLine(pts[0], pts[pts.length - 1], color);
     return;
   }
 
@@ -614,8 +655,14 @@ function drawLiveStroke() {
   ctx.lineWidth = 4;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
+  const first = currentPoints[0];
+  const last = currentPoints[currentPoints.length - 1];
   if (currentTool === "arrow") {
-    drawArrow(currentPoints[0], currentPoints[currentPoints.length - 1]);
+    drawArrow(first, last);
+  } else if (currentTool === "wall") {
+    drawWallLine(first, last, currentColor);
+  } else if (currentTool === "wire") {
+    drawWireLine(first, last, currentColor);
   } else {
     ctx.beginPath();
     ctx.moveTo(currentPoints[0].x, currentPoints[0].y);
@@ -637,6 +684,176 @@ function drawArrow(a, b) {
   ctx.lineTo(b.x - headLen * Math.cos(angle + Math.PI / 6), b.y - headLen * Math.sin(angle + Math.PI / 6));
   ctx.closePath();
   ctx.fill();
+}
+
+// ---------- FOB structure icons ----------
+const ICON_SIZE = 15;
+
+function pentagonPoints(p, s) {
+  const pts = [];
+  for (let i = 0; i < 5; i++) {
+    const ang = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
+    pts.push({ x: p.x + Math.cos(ang) * s, y: p.y + Math.sin(ang) * s });
+  }
+  return pts;
+}
+
+function drawIconGlyph(tool, p, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const s = ICON_SIZE;
+
+  switch (tool) {
+    case "gate": {
+      ctx.beginPath();
+      ctx.moveTo(p.x - s, p.y - s * 0.7);
+      ctx.lineTo(p.x - s, p.y + s * 0.7);
+      ctx.moveTo(p.x + s, p.y - s * 0.7);
+      ctx.lineTo(p.x + s, p.y + s * 0.7);
+      ctx.stroke();
+      drawArrow({ x: p.x - s * 0.8, y: p.y }, { x: p.x + s * 0.8, y: p.y });
+      break;
+    }
+    case "aa": {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, s * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - s * 1.4);
+      ctx.lineTo(p.x - s * 0.4, p.y - s * 0.6);
+      ctx.moveTo(p.x, p.y - s * 1.4);
+      ctx.lineTo(p.x + s * 0.4, p.y - s * 0.6);
+      ctx.stroke();
+      break;
+    }
+    case "drill": {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, s * 0.65, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const ang = (Math.PI / 2) * i + Math.PI / 4;
+        const x1 = p.x + Math.cos(ang) * s * 0.65;
+        const y1 = p.y + Math.sin(ang) * s * 0.65;
+        const x2 = p.x + Math.cos(ang) * s * 1.05;
+        const y2 = p.y + Math.sin(ang) * s * 1.05;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "fob": {
+      const pts = pentagonPoints(p, s);
+      ctx.beginPath();
+      pts.forEach((pt, i) => (i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)));
+      ctx.closePath();
+      ctx.globalAlpha = 0.3;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.stroke();
+      break;
+    }
+    case "bunker": {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, s * 0.8, Math.PI, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x - s * 0.8, p.y);
+      ctx.lineTo(p.x + s * 0.8, p.y);
+      ctx.stroke();
+      break;
+    }
+    case "tower": {
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - s);
+      ctx.lineTo(p.x - s * 0.7, p.y + s * 0.8);
+      ctx.lineTo(p.x + s * 0.7, p.y + s * 0.8);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x - s * 0.35, p.y - s * 0.05);
+      ctx.lineTo(p.x + s * 0.35, p.y - s * 0.05);
+      ctx.stroke();
+      break;
+    }
+    case "mortar": {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, s * 0.65, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + s * 0.85, p.y - s * 0.85);
+      ctx.stroke();
+      break;
+    }
+  }
+
+  ctx.font = "bold 10px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(ICON_LABELS[tool] || "", p.x, p.y + s * 1.5 + 10);
+  ctx.restore();
+}
+
+function drawWallLine(a, b, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  ctx.lineWidth = 2;
+  const step = 14;
+  for (let d = 0; d < len; d += step) {
+    const t = d / len;
+    const cx = a.x + dx * t;
+    const cy = a.y + dy * t;
+    ctx.beginPath();
+    ctx.moveTo(cx - nx * 5, cy - ny * 5);
+    ctx.lineTo(cx + nx * 5, cy + ny * 5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawWireLine(a, b, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  const zig = 6;
+  const step = 10;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  let side = 1;
+  for (let d = step; d < len; d += step) {
+    const cx = a.x + ux * d;
+    const cy = a.y + uy * d;
+    ctx.lineTo(cx + nx * zig * side, cy + ny * zig * side);
+    side *= -1;
+  }
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // ---------- Clear map (Platoon Leader only) ----------

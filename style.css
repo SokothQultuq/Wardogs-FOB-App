@@ -66,6 +66,12 @@ main {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding-right: 16px;
+  border-right: 1px solid var(--border);
+}
+.toolbar-group:last-child {
+  border-right: none;
+  padding-right: 0;
 }
 
 #canvasWrap {
@@ -261,6 +267,21 @@ input[type="text"], input[type="password"] {
   border-radius: 6px;
   padding: 4px;
   font-size: 12px;
+}
+.kick-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+  background: #3a3f47;
+  color: var(--danger);
+}
+.kick-btn:hover {
+  background: var(--danger);
+  color: white;
 }
 
 .online-row {
