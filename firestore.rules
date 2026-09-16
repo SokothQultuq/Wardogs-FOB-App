@@ -54,6 +54,11 @@ service cloud.firestore {
         // down) so someone else can take it.
         (request.auth.uid == uid && request.resource.data.role == 'viewer')
       );
+
+      // Platoon Leaders can remove someone from the roster entirely
+      // ("Kick From Squad"). If that person reopens the app, they'll be
+      // re-created as a fresh Viewer.
+      allow delete: if isPlatoonLeader();
     }
 
     match /map/{doc} {

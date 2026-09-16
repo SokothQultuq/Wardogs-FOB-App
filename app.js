@@ -224,6 +224,19 @@ function renderRoster() {
     };
     row.appendChild(select);
 
+    if (data.id !== uid) {
+      const kickBtn = document.createElement("button");
+      kickBtn.className = "kick-btn";
+      kickBtn.textContent = "×";
+      kickBtn.title = "Kick From Squad";
+      kickBtn.onclick = () => {
+        if (!confirm(`Kick ${data.name || "this person"} from the squad? They'll rejoin as a Viewer if they reopen the app.`)) return;
+        db.collection("users").doc(data.id).delete()
+          .catch((e) => toast("Could not kick: " + e.message));
+      };
+      row.appendChild(kickBtn);
+    }
+
     roster.appendChild(row);
   });
 }
