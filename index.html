@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tactics Map</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Name entry, shown once until a callsign is saved locally -->
+  <div id="nameModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>Enter your callsign</h2>
+      <input id="nameInput" type="text" maxlength="24" placeholder="e.g. Ghost, SL-2, Recon-1" />
+      <button id="nameSubmit">Join</button>
+    </div>
+  </div>
+
+  <header id="topbar">
+    <div class="brand">Tactics Map</div>
+    <div id="whoami" class="whoami"></div>
+    <div id="topActions" class="top-actions"></div>
+  </header>
+
+  <main>
+    <div id="canvasWrap">
+      <div id="mapPlaceholder" class="map-placeholder">
+        Waiting for Recon to upload the map image...
+      </div>
+      <img id="mapImage" class="map-image hidden" alt="Tactical map" />
+      <canvas id="drawCanvas"></canvas>
+    </div>
+
+    <aside id="sidebar">
+
+      <section id="uploadSection" class="panel hidden">
+        <h3>Map Image</h3>
+        <input id="mapFileInput" type="file" accept="image/*" class="hidden" />
+        <button id="mapUploadBtn">Upload / Replace Map</button>
+        <p class="hint">Paste (Ctrl/Cmd+V) anywhere on the page also works.</p>
+      </section>
+
+      <section id="toolSection" class="panel hidden">
+        <h3>Drawing Tools</h3>
+        <div class="tool-row">
+          <button class="toolBtn" data-tool="pen">Pen</button>
+          <button class="toolBtn" data-tool="arrow">Arrow</button>
+          <button class="toolBtn" data-tool="text">Label</button>
+          <button class="toolBtn" data-tool="eraser">Eraser</button>
+        </div>
+        <div class="color-row" id="colorRow"></div>
+        <div class="tool-row">
+          <button id="undoBtn">Undo My Last</button>
+        </div>
+      </section>
+
+      <section id="adminSection" class="panel hidden">
+        <h3>Platoon Leader Controls</h3>
+        <button id="clearMapBtn" class="danger">Clear Map (image + markings)</button>
+        <h4>Roster &amp; Roles</h4>
+        <div id="roster"></div>
+      </section>
+
+      <section id="claimSection" class="panel">
+        <h3>Claim Platoon Leader</h3>
+        <input id="passcodeInput" type="password" placeholder="Passcode" />
+        <button id="claimBtn">Claim</button>
+      </section>
+
+    </aside>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Firebase compat SDK (no build step needed) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

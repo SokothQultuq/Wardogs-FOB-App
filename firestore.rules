@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isPlatoonLeader() {
+      return signedIn() && myRole() == 'platoon_leader';
+    }
+
+    function canDraw() {
+      return signedIn() && myRole() in ['squad_leader', 'platoon_leader', 'fob_designer'];
+    }
+
+    function canUploadMap() {
+      return signedIn() && myRole() in ['recon', 'platoon_leader'];
+    }
+
+    function correctPasscode() {
+      return request.resource.data.passcode ==
+        get(/databases/$(database)/documents/config/adminPasscode).data.code;
+    }
+
+    // Hidden admin passcode doc. Never directly readable or writable by
+    // clients — only used inside these rules via get(). You create this
+    // document once, manually, from the Firebase console (see README).
+    match /config/{doc} {
+      allow read, write: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+
+      // A brand-new viewer creates their own doc, always starting as 'viewer'.
+      allow create: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.role == 'viewer';
+
+      allow update: if signedIn() && (
+        // Platoon Leaders can change anyone's name or role.
+        isPlatoonLeader() ||
+        // Anyone can update their own display name (role must stay the same).
+        (request.auth.uid == uid &&
+          request.resource.data.role == resource.data.role) ||
+        // Anyone can self-promote to Platoon Leader with the correct passcode.
+        (request.auth.uid == uid &&
+          request.resource.data.role == 'platoon_leader' &&
+          correctPasscode())
+      );
+    }
+
+    match /map/{doc} {
+      allow read: if true;
+      allow write: if canUploadMap();
+    }
+
+    match /strokes/{strokeId} {
+      allow read: if true;
+      allow create: if canDraw() && request.resource.data.uid == request.auth.uid;
+      allow delete: if canDraw() &&
+        (resource.data.uid == request.auth.uid || isPlatoonLeader());
+      allow update: if false;
+    }
+  }
+}
