@@ -170,14 +170,14 @@ function listenToMap() {
     if (snap.exists && snap.data().imageData) {
       mapImage.src = snap.data().imageData;
       mapImage.onload = () => {
-        canvasWrap.scrollTop = 0;
-        canvasWrap.scrollLeft = 0;
         resizeCanvasToImage();
       };
       mapImage.classList.remove("hidden");
       mapPlaceholder.classList.add("hidden");
+      el("mapStage").classList.remove("hidden");
     } else {
       mapImage.classList.add("hidden");
+      el("mapStage").classList.add("hidden");
       mapPlaceholder.classList.remove("hidden");
     }
   });
@@ -186,14 +186,38 @@ function listenToMap() {
 function resizeCanvasToImage() {
   const w = mapImage.naturalWidth || 1200;
   const h = mapImage.naturalHeight || 800;
+  // The canvas's actual pixel buffer stays at the image's native resolution,
+  // so drawing stays crisp — only its on-screen CSS size changes to fit the
+  // window. canvasPos() below already converts screen coordinates into this
+  // buffer's coordinate space, so scaling the display size doesn't break
+  // where strokes land.
   canvas.width = w;
   canvas.height = h;
-  canvas.style.width = w + "px";
-  canvas.style.height = h + "px";
-  mapImage.style.width = w + "px";
-  mapImage.style.height = h + "px";
+  fitStageToWindow();
   redrawAllStrokes();
 }
+
+function fitStageToWindow() {
+  const w = mapImage.naturalWidth;
+  const h = mapImage.naturalHeight;
+  if (!w || !h) return;
+  const stage = el("mapStage");
+  const availW = canvasWrap.clientWidth - 24;
+  const availH = canvasWrap.clientHeight - 24;
+  const scale = Math.min(availW / w, availH / h);
+  const dispW = Math.round(w * scale);
+  const dispH = Math.round(h * scale);
+  stage.style.width = dispW + "px";
+  stage.style.height = dispH + "px";
+  mapImage.style.width = dispW + "px";
+  mapImage.style.height = dispH + "px";
+  canvas.style.width = dispW + "px";
+  canvas.style.height = dispH + "px";
+}
+
+window.addEventListener("resize", () => {
+  if (mapImage.naturalWidth) fitStageToWindow();
+});
 
 el("mapUploadBtn").onclick = () => el("mapFileInput").click();
 el("mapFileInput").onchange = (e) => {
